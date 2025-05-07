@@ -1,0 +1,78 @@
+#NOMBRE ESTUDIANTE: ARANZAZU HANNAY GOMEZ FAUSTINO
+#MATRICULA: 22110136
+#Descripción: Este programa utiliza la técnica de detección de rostros para integrar un collage en la parte superior del rostro, inspirado en mi grupo favorito, Latin Mafia. El collage está basado en una de sus canciones más populares, "Quiéreme con mi mal temperamento". La idea surgió tras asistir recientemente a uno de sus conciertos, lo cual me motivó a aplicar lo aprendido en clase sobre detección de rostros para crear este programa.
+
+import cv2
+import imutils
+
+# Prender la camara
+cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+
+# Agg imagen del filtro
+image = cv2.imread('filtro.png', cv2.IMREAD_UNCHANGED)
+
+# Clasificador (opcion de leer rostro con haar cascades)
+faceClassif = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+# inicializar la camaruki
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+    # Definimos 640 pixeles de ancho (el recuadro que se mostrara)
+    frame = imutils.resize(frame, width=640)
+
+    # Detectar rostro en la camara
+    faces = faceClassif.detectMultiScale(frame, 1.3, 5)
+
+    for (x, y, w, h) in faces:
+        # Redimensionar la imagen filtro para su posicion (arriba del cuadrante verde)
+        resized_image = imutils.resize(image, width=w)
+        filas_image = resized_image.shape[0]
+        col_image = w
+
+        # Determinar la porción del alto (4 = los canales de la imagen)
+        porcion_alto = filas_image // 4
+
+        # punto_filtro sera el cuadrante inicial para que se coloque el filtro
+        punto_filtro = 0
+        # filtro no desaparezca si sale del cuadrante, que se adapte
+        if y + porcion_alto - filas_image >= 0:
+            #
+            n_frame = frame[y + porcion_alto - filas_image:y + porcion_alto, x:x + col_image]
+        else:
+            punto_filtro = abs(y + porcion_alto - filas_image)
+            n_frame = frame[0:y + porcion_alto, x:x + col_image]
+
+        # reajustar tamaño y reinvertir la foto
+        mask = resized_image[:, :, 3]
+        mask_inv = cv2.bitwise_not(mask)
+
+        # Fondo negro y combinación con frame
+        bg_black = cv2.bitwise_and(resized_image, resized_image, mask=mask)
+        bg_black = bg_black[punto_filtro:, :, 0:3]
+        bg_frame = cv2.bitwise_and(n_frame, n_frame, mask=mask_inv[punto_filtro:, :])
+
+        # Combinar ambas fotos (la de fondo negro pero letras de color y fondo transparente con letras negras)
+        result = cv2.add(bg_black, bg_frame)
+        if y + porcion_alto - filas_image >= 0:
+            frame[y + porcion_alto - filas_image:y + porcion_alto, x:x + col_image] = result
+        # Si no hay suficiente espacio se ajusta la imagen
+        else:
+            frame[0:y + porcion_alto, x:x + col_image] = result
+
+    cv2.imshow('frame', frame)
+
+    # Presionar '1' para tomar la foto o '0' para salir
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('1'):
+        cv2.imwrite("latinmafia_filtro.jpg", frame)
+        print("¡Selfie tomada :3!")
+        break
+    elif key == ord('0'):
+        print("Saliendo del filtro :(")
+        break
+
+# bye camara y filtro
+cap.release()
+cv2.destroyAllWindows()
